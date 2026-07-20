@@ -6,20 +6,18 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dns from 'dns';
 
-import { sendBookingEmails } from './mailer.js'; // Imports our new templates 🚀
+import { sendBookingEmails } from './mailer.js'; 
 import { log } from 'console';
 
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 dns.setDefaultResultOrder('ipv4first');
 
-// 1. Initialize environment configurations immediately with absolute pathing
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
-const PORT = process.env.PORT || 3000;
-log(process.env.MONGODB_URI);
+const PORT = process.env.PORT || 5000; // Shifted to 5000 to match standard MERN routing
 
 // Middleware
 app.use(cors());
@@ -36,6 +34,7 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.error('❌ MongoDB connection error - FULL DETAILS:');
     console.error(err);
   });
+
 // Database Schema & Model
 const bookingSchema = new mongoose.Schema({
   empName: { type: String, required: true },
@@ -52,7 +51,7 @@ const bookingSchema = new mongoose.Schema({
 
 const Booking = mongoose.model('Booking', bookingSchema);
 
-// API Endpoint matching your frontend form action
+// API Endpoint matching frontend form fields
 app.post('/api/booking', async (req, res) => {
   try {
     const { 
@@ -92,10 +91,11 @@ app.post('/api/booking', async (req, res) => {
       dropAddress,
       dropDateTime,
       carType,
-      remarks
+      remarks: remarks || 'None'
     });
 
-    res.status(201).json({ success: true, message: 'Booking processed successfully!' });
+    // Send successful response so frontend can proceed to redirect user to WhatsApp instantly
+    res.status(200).json({ success: true, message: 'Booking processed successfully!' });
   } catch (error) {
     console.error('Backend endpoint processing failure:', error);
     res.status(500).json({ success: false, error: 'Internal Server Error' });

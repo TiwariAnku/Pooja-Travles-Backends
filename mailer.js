@@ -1,193 +1,122 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '.env') });
 
+// Fixed to use your exact .env variable names: EMAIL_USER and EMAIL_PASS
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.EMAIL_USER, // Kept exactly as your .env
+    pass: process.env.EMAIL_PASS, // Kept exactly as your .env
   },
-  tls: {
-    rejectUnauthorized: false
-  }
 });
 
-transporter.verify((error) => {
+// Verification check to print errors directly to the terminal on startup
+transporter.verify((error, success) => {
   if (error) {
-    console.log("❌ VERIFY FAILED:", error.message);
+    console.error("❌ Gmail connection failed. Error details:", error);
   } else {
-    console.log("✅ Gmail connected! Ready to send emails.");
+    console.log("✉️ Gmail Server connected and ready to send emails!");
   }
 });
 
-// ─────────────────────────────────────────────
-// EMAIL 1 → EMPLOYEE CONFIRMATION
-// ─────────────────────────────────────────────
-const employeeMailTemplate = (data) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8"/>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; background:#f0f2f5; }
-    .wrapper { max-width:660px; margin:30px auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.12); }
-    .header { background: linear-gradient(135deg, #1a237e, #283593); padding:30px; text-align:center; }
-    .header h1 { color:#fff; font-size:24px; letter-spacing:1px; margin-bottom:6px; }
-    .header p  { color:#9fa8da; font-size:13px; }
-    .greeting { padding:24px 30px 10px; }
-    .greeting p { color:#444; font-size:14px; line-height:1.7; }
-    .table-wrap { padding:10px 30px 24px; }
-    table { width:100%; border-collapse:collapse; border-radius:8px; overflow:hidden; }
-    thead tr { background:#1a237e; }
-    thead th { color:#fff; padding:11px 14px; text-align:left; font-size:13px; }
-    tbody tr:nth-child(even) { background:#e8eaf6; }
-    tbody tr:nth-child(odd)  { background:#f5f5f5; }
-    tbody td { padding:10px 14px; font-size:13px; color:#333; border-bottom:1px solid #e0e0e0; }
-    tbody td:first-child { font-weight:bold; color:#1a237e; width:40px; text-align:center; }
-    .badge { display:inline-block; background:#e8f5e9; color:#2e7d32; padding:6px 18px; border-radius:20px; font-size:13px; font-weight:bold; border:1px solid #a5d6a7; }
-    .status-wrap { padding:0 30px 24px; }
-    .footer { background: linear-gradient(135deg, #1a237e, #283593); padding:24px 30px; text-align:center; }
-    .footer .co-name { color:#fff; font-size:16px; font-weight:bold; letter-spacing:1px; margin-bottom:8px; }
-    .footer p { color:#9fa8da; font-size:12px; line-height:1.8; }
-    .footer .divider { border:none; border-top:1px solid #3949ab; margin:12px auto; width:60%; }
-    .footer .note { color:#7986cb; font-size:11px; margin-top:10px; }
-  </style>
-</head>
-<body>
-<div class="wrapper">
-  <div class="header">
-    <h1>🚖 Cab Booking Confirmed</h1>
-    <p>Your ride has been successfully scheduled</p>
-  </div>
-  <div class="greeting">
-    <p>Dear <strong>${data.empName}</strong>,</p>
-    <p style="margin-top:10px;">
-      We are pleased to confirm your cab booking with <strong>Pooja Travels</strong>.
-      Please find your booking details below and keep this email for reference.
-    </p>
-  </div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr><th>Sr.</th><th>Details</th><th>Information</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>1</td>  <td>Employee Name</td>           <td>${data.empName}</td></tr>
-        <tr><td>2</td>  <td>Cell No.</td>                <td>${data.cellNo}</td></tr>
-        <tr><td>3</td>  <td>Pick Up Address</td>         <td>${data.pickupAddress}</td></tr>
-        <tr><td>4</td>  <td>Date &amp; Time of Pick Up</td><td>${data.pickupDateTime}</td></tr>
-        <tr><td>5</td>  <td>Drop Address</td>            <td>${data.dropAddress}</td></tr>
-        <tr><td>6</td>  <td>Date &amp; Time of Drop</td>   <td>${data.dropDateTime}</td></tr>
-        <tr><td>7</td>  <td>Car Type</td>                <td>${data.carType}</td></tr>
-        <tr><td>8</td>  <td>Remarks</td>                 <td>${data.remarks || 'None'}</td></tr>
-      </tbody>
+export const sendBookingEmails = async (bookingData) => {
+  const {
+    empName,
+    cellNo,
+    employeeEmail,
+    pickupAddress,
+    pickupDateTime,
+    dropAddress,
+    dropDateTime,
+    carType,
+    remarks,
+  } = bookingData;
+
+  const tableContent = `
+    <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; margin-top: 15px;">
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; width: 30%;">Employee Name</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${empName}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Cell Number</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${cellNo}</td>
+      </tr>
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Email Address</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${employeeEmail}</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Car Requested</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0; color: #d97706; font-weight: bold;">${carType}</td>
+      </tr>
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Pickup Details</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${pickupAddress} <br><small style="color:#64748b;">(${pickupDateTime})</small></td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Drop Details</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0;">${dropAddress} <br><small style="color:#64748b;">(${dropDateTime})</small></td>
+      </tr>
+      <tr style="background-color: #f8fafc;">
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-weight: bold;">Special Remarks</td>
+        <td style="padding: 10px; border: 1px solid #e2e8f0; font-style: italic;">${remarks}</td>
+      </tr>
     </table>
-  </div>
-  <div class="status-wrap">
-    <span class="badge">✔ Booking Confirmed</span>
-    <p style="margin-top:14px; color:#666; font-size:13px;">For any changes or queries, please contact us immediately.</p>
-  </div>
-  <div class="footer">
-    <p class="co-name">🏢 Pooja Travels Pvt. Ltd.</p>
-    <hr class="divider"/>
-    <p>📍 Office No. 194, Vishnu Nagar Society, L.U. Gadkari Marg, Chembur, Mumbai-400 074</p>
-    <p>📞 9594917750 / 9702909087 &nbsp;|&nbsp; ✉ poojatravels111@gmail.com</p>
-    <p>GSTIN: 27AICPT7468H1ZP</p>
-    <p class="note">This is an auto-generated email. Please do not reply directly.</p>
-  </div>
-</div>
-</body>
-</html>`;
+  `;
 
-// ─────────────────────────────────────────────
-// EMAIL 2 → ADMIN NOTIFICATION
-// ─────────────────────────────────────────────
-const adminMailTemplate = (data) => `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8"/>
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family: Arial, sans-serif; background:#f0f2f5; }
-    .wrapper { max-width:660px; margin:30px auto; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,0.12); }
-    .header { background: linear-gradient(135deg, #e65100, #bf360c); padding:30px; text-align:center; }
-    .header h1 { color:#fff; font-size:22px; letter-spacing:1px; margin-bottom:6px; }
-    .header p  { color:#ffccbc; font-size:13px; }
-    .body { padding:24px 30px; }
-    .body p { color:#444; font-size:14px; margin-bottom:16px; line-height:1.6; }
-    table { width:100%; border-collapse:collapse; }
-    thead tr { background:#e65100; }
-    thead th { color:#fff; padding:11px 14px; text-align:left; font-size:13px; }
-    tbody tr:nth-child(even) { background:#fff3e0; }
-    tbody tr:nth-child(odd)  { background:#fafafa; }
-    tbody td { padding:10px 14px; font-size:13px; color:#333; border-bottom:1px solid #e0e0e0; }
-    tbody td:first-child { font-weight:bold; color:#e65100; width:200px; }
-    .footer { background: linear-gradient(135deg, #e65100, #bf360c); padding:24px 30px; text-align:center; }
-    .footer .co-name { color:#fff; font-size:15px; font-weight:bold; margin-bottom:8px; }
-    .footer p { color:#ffccbc; font-size:12px; line-height:1.8; }
-    .footer .divider { border:none; border-top:1px solid #ff7043; margin:12px auto; width:60%; }
-    .footer .note { color:#ffab91; font-size:11px; margin-top:10px; }
-  </style>
-</head>
-<body>
-<div class="wrapper">
-  <div class="header">
-    <h1>🔔 New Cab Booking Request</h1>
-    <p>Please review and arrange the vehicle accordingly</p>
-  </div>
-  <div class="body">
-    <p>A new cab booking has been submitted. Details are as follows:</p>
-    <table>
-      <thead>
-        <tr><th>Field</th><th>Value</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>Employee Name</td>           <td>${data.empName}</td></tr>
-        <tr><td>Cell No.</td>                <td>${data.cellNo}</td></tr>
-        <tr><td>Employee Email</td>         <td>${data.employeeEmail}</td></tr>
-        <tr><td>Pick Up Address</td>        <td>${data.pickupAddress}</td></tr>
-        <tr><td>Pick Up Date &amp; Time</td><td>${data.pickupDateTime}</td></tr>
-        <tr><td>Drop Address</td>           <td>${data.dropAddress}</td></tr>
-        <tr><td>Drop Date &amp; Time</td>   <td>${data.dropDateTime}</td></tr>
-        <tr><td>Car Type</td>                <td>${data.carType}</td></tr>
-        <tr><td>Remarks</td>                 <td>${data.remarks || 'None'}</td></tr>
-        <tr><td>Submitted At</td>           <td>${new Date().toLocaleString('en-IN')}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="footer">
-    <p class="co-name">🏢 Pooja Travels — Admin Portal</p>
-    <hr class="divider"/>
-    <p>📍 Office No. 194, Vishnu Nagar Society, L.U. Gadkari Marg, Chembur, Mumbai-400 074</p>
-    <p>📞 9594917750 / 9702909087 &nbsp;|&nbsp; ✉ poojatravels111@gmail.com</p>
-    <p class="note">Internal use only. Do not forward this email.</p>
-  </div>
-</div>
-</body>
-</html>`;
+  try {
+    await Promise.all([
+      // EMAIL A: Sent to Admin (using ADMIN_EMAIL from your .env)
+      transporter.sendMail({
+        from: `"Pooja Travels Engine" <${process.env.EMAIL_USER}>`,
+        to: process.env.ADMIN_EMAIL, 
+        subject: `🚨 NEW CAB BOOKING REQUEST - ${empName} (${carType})`,
+        html: `
+          <div style="max-width: 600px; margin: auto; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <h2 style="color: #0f172a; border-bottom: 3px solid #f59e0b; padding-bottom: 10px;">New Booking Alert</h2>
+            <p>Hello Admin, a new travel reservation form payload has been registered via your web portal. Details follow below:</p>
+            ${tableContent}
+            <p style="margin-top: 20px; font-size: 12px; color: #94a3b8;">Pooja Travels CMS Engine System • Automated Notification Link</p>
+          </div>
+        `,
+      }),
 
-export const sendBookingEmails = async (data) => {
-  // Mail 1 → Employee
-  await transporter.sendMail({
-    from: `"Pooja Travels" <${process.env.EMAIL_USER}>`,
-    to: data.employeeEmail,
-    subject: '🚖 Cab Booking Confirmed – Pooja Travels',
-    html: employeeMailTemplate(data),
-  });
+      // EMAIL B: Sent directly to Passenger/Employee Inbox
+      transporter.sendMail({
+        from: `"Pooja Travels" <${process.env.EMAIL_USER}>`,
+        to: employeeEmail,
+        subject: `🚖 Cab Booking Acknowledgment - Pooja Travels`,
+        html: `
+          <div style="max-width: 600px; margin: auto; padding: 20px; border: 1px solid #cbd5e1; border-radius: 8px;">
+            <h2 style="color: #0f172a; border-bottom: 3px solid #f59e0b; padding-bottom: 10px;">Booking Order Received</h2>
+            <p>Dear ${empName},</p>
+            <p>Thank you for choosing <strong>Pooja Travels</strong>. We have successfully registered your request. Our dispatcher team will reach out with driver routing details shortly.</p>
+            <h4 style="margin-top: 20px; color: #1e293b;">Your Booking Summary:</h4>
+            ${tableContent}
+            <br>
+            <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px; border-radius: 6px; font-size: 13px; color: #166534;">
+              <strong>Note:</strong> Your companion text has also been sent to our dispatch team via WhatsApp for instant processing.
+            </div>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-top: 20px;">
+            <p style="font-size: 11px; color: #64748b; text-align: center;">
+              Office No. 194, Vishnu Nagar Society, L.U. Gadkari Marg, Chembur, Mumbai-400 074<br>
+              Contact: 9594917750 / 9702909087 | GSTIN: 27AICPT7468H1ZP
+            </p>
+          </div>
+        `,
+      }),
+    ]);
 
-  // Mail 2 → Admin
-  await transporter.sendMail({
-    from: `"Pooja Travels Booking System" <${process.env.EMAIL_USER}>`,
-    to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER, // Falls back to yourself if ADMIN_EMAIL isn't configured yet
-    subject: `🔔 New Booking – ${data.empName} | ${data.pickupDateTime}`,
-    html: adminMailTemplate(data),
-  });
-
-  console.log('✅ Both emails sent successfully');
+    console.log('✉️ Simultaneous corporate and client update emails dispatched seamlessly.');
+  } catch (error) {
+    console.error('Nodemailer pipeline breakdown inside mailer.js:', error);
+    throw error;
+  }
 };
